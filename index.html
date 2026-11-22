@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCB marks updater</title>
+<meta name="description" content="Fill exam marks for a whole class in one sheet, then upload them to MyClassBoard in one go.">
+<style>
+  :root { --ink: #1c2430; --soft: #5c6b82; --line: #dde3ea; --blue: #1565d8; --paper: #fff; --wash: #f3f6fa; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #e7ecf3; --soft: #9fb0c8; --line: #2c3a50; --blue: #6ea8ff; --paper: #121a27; --wash: #1a2433; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 30px; margin: 0 0 6px; } h2 { font-size: 19px; margin: 36px 0 10px; }
+  .lead { color: var(--soft); font-size: 18px; margin: 0 0 24px; }
+  .note { border: 1px solid #ecd28a; background: #fff6dd; color: #4d3800; border-radius: 8px; padding: 10px 14px; }
+  ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+  ol.steps > li { counter-increment: step; position: relative; padding: 14px 16px 14px 58px; border: 1px solid var(--line);
+    border-radius: 10px; margin-bottom: 10px; background: var(--wash); }
+  ol.steps > li::before { content: counter(step); position: absolute; left: 16px; top: 14px; width: 28px; height: 28px;
+    border-radius: 50%; background: var(--blue); color: #fff; font-weight: 700; text-align: center; line-height: 28px; }
+  ol.steps b { display: block; }
+  .bookmark { display: inline-block; margin: 10px 0 4px; padding: 9px 18px; border-radius: 8px; background: var(--blue); color: #fff;
+    font-weight: 700; text-decoration: none; cursor: grab; }
+  small, .soft { color: var(--soft); }
+  ul { padding-left: 20px; } li { margin: 4px 0; }
+  code { background: var(--wash); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  footer { margin-top: 40px; color: var(--soft); font-size: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>MCB marks updater</h1>
+  <p class="lead">Fill the marks for a whole class in one sheet, one tab per section. Then upload them to MyClassBoard in one go.</p>
+
+  <p class="note" id="build-note"><b>New, and not yet proven on real marks.</b> The first time, use "Tick only the first section", upload that one
+    section, and look at it in MyClassBoard before you upload the rest.</p>
+
+  <h2>How to use it</h2>
+  <ol class="steps">
+    <li><b>Add the bookmark (one time)</b>
+      Show your bookmarks bar (<code>Ctrl</code>/<code>Cmd</code> + <code>Shift</code> + <code>B</code>), then drag this button onto it:<br>
+      <a class="bookmark" id="bookmark" href="#">MCB marks updater</a><br>
+      <small>Drag it, do not click it here. It only works on a MyClassBoard page.</small>
+    </li>
+    <li><b>Open it inside MyClassBoard</b>
+      Log in to MyClassBoard on a laptop or desktop as usual, then click the bookmark. A panel opens on the right side of the page.
+    </li>
+    <li><b>Make the template</b>
+      Choose the class, the examination and the subject. If the subject has parts, type them, for example
+      <code>Physics 7, Chemistry 6, Biology 7</code>. You get one Excel file with a tab for every section, with each student's
+      enrollment code and name already filled in. Upload it to Google Drive and open it with Google Sheets.
+    </li>
+    <li><b>Fill in the marks</b>
+      Type the marks for each part. The total is added up for you. For an absent student type <code>A</code>, <code>AB</code>,
+      <code>L</code> or <code>AM</code>. Leave a student blank to enter them later.
+    </li>
+    <li><b>Upload</b>
+      Back in MyClassBoard, click the bookmark, open <i>Upload marks</i>, and give it the sheet: the downloaded <code>.xlsx</code>
+      file, or the Google Sheets link. Review what will be written for each section, then press Upload. Each section is
+      read back from MyClassBoard afterwards and compared with the sheet.
+    </li>
+  </ol>
+
+  <h2>What it does with your data</h2>
+  <ul>
+    <li>It runs in your own browser, inside your own MyClassBoard login. It never sees your password.</li>
+    <li>Marks go from your sheet to MyClassBoard and nowhere else. Nothing is stored or sent to this site.</li>
+    <li>A Google Sheets link only works if the sheet is shared as "Anyone with the link", which lets anyone holding the link
+      read the marks. To keep the sheet private, use File → Download → Microsoft Excel and choose that file instead.</li>
+    <li>Nothing is written until you have seen the preview and pressed Upload. A section with a mistake is skipped whole.</li>
+  </ul>
+
+  <footer>Not made by or affiliated with MyClassBoard. The code is plain JavaScript and open to read in this site's repository.</footer>
+</main>
+<script>
+  // The bookmark loads the panel script from wherever this page is hosted.
+  var base = new URL('.', location.href).href;
+  var code = "(function(){var s=document.createElement('script');s.src='" + base + "mcb-updater.js?v='+Date.now();document.body.appendChild(s);})()";
+  var link = document.getElementById('bookmark');
+  link.href = 'javascript:' + encodeURIComponent(code);
+  link.addEventListener('click', function (event) {
+    event.preventDefault();
+    alert('Drag this button to your bookmarks bar, then click it on your MyClassBoard page.');
+  });
+</script>
+</body>
+</html>

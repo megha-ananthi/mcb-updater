@@ -1,0 +1,7 @@
+# Captures from the real portal and any real marks never go into git.
+discovery/
+*.har
+*.xlsx
+*.csv
+.DS_Store
+.claude/

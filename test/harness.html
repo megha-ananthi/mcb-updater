@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fake MCB · mcb-updater test page</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; max-width: 760px; color: #1c2430; }
+  h1 { font-size: 20px; } h2 { font-size: 15px; margin-top: 22px; }
+  button { padding: 7px 12px; margin: 0 8px 8px 0; font: inherit; cursor: pointer; }
+  label { display: block; margin: 4px 0; }
+  table { border-collapse: collapse; } td, th { border: 1px solid #c9d1dc; padding: 3px 9px; text-align: left; }
+  #calls { font: 12px/1.5 ui-monospace, monospace; max-height: 220px; overflow: auto; background: #f3f6fa; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>Fake MCB (test page)</h1>
+<p>This page stands in for MyClassBoard so the panel can be tried without touching real marks. Every student is made up.</p>
+
+<button id="open">Open the panel (what the bookmark does)</button>
+<button id="sample" disabled>Hand the panel a filled sample sheet</button>
+<label><input type="checkbox" id="mistake"> Put a mistake in Section B of the sample sheet (a Physics mark above 7)</label>
+<label><input type="checkbox" id="lose"> Fake MCB silently drops one mark of Section C when it is uploaded</label>
+
+<h2>What fake MCB has saved (Grade 8, NOVEMBER CHAPTER TEST -1, SCIENCE)</h2>
+<div id="saved"></div>
+<h2>Requests the panel made</h2>
+<div id="calls"></div>
+
+<script>
+(function () {
+  'use strict';
+  const names = ['AADHYA R', 'BHARATH K', 'CHARU S', 'DINESH M', 'ESHA V', 'FARHAN A', 'GAYATHRI P', 'HARI N', 'INDHU L', 'JEEVA T',
+    'KAVYA D', 'LOKESH B', 'MEENA G', 'NAVEEN C', 'OVIYA J', 'PRANAV E', 'RITHIKA H', 'SANJAY U'];
+  const sections = [{ id: '201', name: 'Section A' }, { id: '202', name: 'Section B' }, { id: '203', name: 'Section C' }];
+  const roster = {};
+  sections.forEach((s, i) => {
+    roster[s.id] = names.slice(i * 6, i * 6 + 6).map((name, k) => ({ code: (16 + i) + 'ZZ0100' + (10 + i * 6 + k), name }));
+  });
+  const subjects = [{ id: '501,-1', name: 'ENGLISH', max: 20 }, { id: '505,-1', name: 'SCIENCE', max: 20 }, { id: '504,-1', name: 'MATHEMATICS', max: 20 }];
+  const savedMarks = new Map(); // 'sectionId|subjectId|code' -> mark
+  savedMarks.set('201|505,-1|' + roster['201'][0].code, '11.00'); // MCB already holds a different mark for one student
+
+  const callsBox = document.getElementById('calls');
+  const call = async (text) => {
+    callsBox.append(text, document.createElement('br'));
+    callsBox.scrollTop = callsBox.scrollHeight;
+    await new Promise((done) => setTimeout(done, 120));
+  };
+
+  function drawSaved() {
+    const table = document.createElement('table');
+    const head = table.insertRow();
+    ['Section', 'Enrollment code', 'Name', 'SCIENCE'].forEach((t) => { const th = document.createElement('th'); th.textContent = t; head.append(th); });
+    sections.forEach((s) => roster[s.id].forEach((st) => {
+      const row = table.insertRow();
+      [s.name, st.code, st.name, savedMarks.get(s.id + '|505,-1|' + st.code) || ''].forEach((t) => { row.insertCell().textContent = t; });
+    }));
+    document.getElementById('saved').replaceChildren(table);
+  }
+  drawSaved();
+
+  window.MCB_UPDATER_FAKE_API = {
+    connected: true,
+    async listBranches() { await call('listBranches'); return [{ id: '35', name: 'Demo International School' }]; },
+    async listClasses(branchId) { await call('listClasses ' + branchId); return [{ id: '98', name: 'Grade 7' }, { id: '99', name: 'Grade 8' }]; },
+    async listExams(branchId, classId) {
+      await call('listExams ' + classId);
+      return classId === '99' ? [{ id: '1601', name: 'November topic test 2', label: 'November topic test 2 (16 Nov 2026)' }, { id: '1595', name: 'NOVEMBER CHAPTER TEST -1', label: 'NOVEMBER CHAPTER TEST -1 (9 Nov 2026)' }] : [];
+    },
+    async listSubjects(ctx) { await call('listSubjects exam ' + ctx.examId); return subjects; },
+    async listSections(branchId, classId) { await call('listSections ' + classId); return sections; },
+    // Shaped like MCB's own answer, so the panel builds the same file it would send to the real MCB.
+    async getSection(ctx) {
+      await call('getSection ' + ctx.sectionId + ' [' + ctx.subjects.map((s) => s.name).join(', ') + ']');
+      const wanted = subjects.filter((s) => ctx.subjects.some((x) => String(x.id) === s.id));
+      const saved = {};
+      wanted.forEach((s) => {
+        saved[s.id] = new Map();
+        roster[ctx.sectionId].forEach((st) => {
+          const mark = savedMarks.get(ctx.sectionId + '|' + s.id + '|' + st.code);
+          if (mark) saved[s.id].set(st.code, mark);
+        });
+      });
+      return {
+        students: roster[ctx.sectionId].slice(),
+        subjects: wanted.map((s) => ({
+          id: s.id, name: s.name, max: s.max, lastDate: '',
+          raw: { SubjectID: s.id.split(',')[0], SubjectSkillID: '-1', SubjectName: ' ' + s.name, MaxMarks: s.max + '.00', MinMarks: '0.00', MarksEntryLastDate: '' },
+        })),
+        saved, gradeOnly: false,
+      };
+    },
+    async uploadMarks(ctx, subject, students, marks) {
+      const lines = window.McbCore.buildMcbCsv(subject, students, marks).trim().split('\r\n').slice(1);
+      let count = 0;
+      lines.forEach((line, n) => {
+        const [code, mark] = line.split(',');
+        if (document.getElementById('lose').checked && ctx.sectionId === '203' && n === 0) return;
+        savedMarks.set(ctx.sectionId + '|' + subject.id + '|' + code, mark);
+        count += 1;
+      });
+      await call('uploadMarks section ' + ctx.sectionId + ' ' + subject.name + ': ' + lines.length + ' lines in the file, ' + count + ' saved');
+      drawSaved();
+    },
+  };
+
+  document.getElementById('open').onclick = () => {
+    const tag = document.createElement('script');
+    tag.src = '../mcb-updater.js?v=' + Date.now();
+    document.body.appendChild(tag);
+    const wait = setInterval(() => {
+      if (window.__mcbUpdater) { clearInterval(wait); document.getElementById('sample').disabled = false; }
+    }, 100);
+  };
+
+  // Builds the Grade 8 Science template the same way the panel does, types marks into it, and hands it over.
+  document.getElementById('sample').onclick = async () => {
+    const core = window.McbCore;
+    const wb = await core.buildWorkbook(window.ExcelJS, {
+      host: location.hostname,
+      branch: { id: '35', name: 'Demo International School' }, cls: { id: '99', name: 'Grade 8' },
+      exam: { id: '1595', name: 'NOVEMBER CHAPTER TEST -1' },
+      subjects: [{ id: '505,-1', name: 'SCIENCE', max: 20, parts: [{ name: 'Physics', max: 7 }, { name: 'Chemistry', max: 6 }, { name: 'Biology', max: 7 }] }],
+      sections: sections.map((s) => ({ id: s.id, name: s.name, students: roster[s.id] })),
+    });
+    const marks = [[5, 3.5, 5.5], [4.5, 4, 4.5], [6.5, 3, null], ['A', null, null], [null, null, null], [7, 6, 7]];
+    sections.forEach((s) => {
+      const ws = wb.getWorksheet(s.name);
+      marks.forEach((row, i) => row.forEach((value, k) => { if (value != null) ws.getCell(i + 2, 4 + k).value = value; }));
+    });
+    if (document.getElementById('mistake').checked) wb.getWorksheet('Section B').getCell('D2').value = 9;
+    window.__mcbUpdater.readBuffer(await wb.xlsx.writeBuffer());
+  };
+})();
+</script>
+</body>
+</html>
