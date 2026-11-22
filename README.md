@@ -14,7 +14,7 @@ this site into the MCB page, where it runs with her own session. No password is 
 sheet to MCB and nowhere else. A normal website cannot do this: the browser does not let another site use her
 MCB login.
 
-1. **Make template.** Pick branch, class, examination and subject(s); optionally type the parts of a subject. The
+1. **Make template.** Pick branch, class, examination and subject(s); optionally tick "Split into parts" and give each part a name and a maximum. The
    panel reads every section's student list from MCB and downloads one `.xlsx`: a tab per section with
    `S.No | Enrollment code | Name | <parts> | TOTAL`, and a hidden `_meta` tab that records which exam the file
    is for.

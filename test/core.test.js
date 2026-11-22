@@ -31,15 +31,12 @@ test('parseCell tells numbers, absent codes, blanks and junk apart', () => {
   assert.equal(core.parseCell('-2').kind, 'bad');
 });
 
-test('parts text is read and must add up to the subject maximum', () => {
-  const { parts, errors } = core.parseParts('Physics 7, Chemistry (6), Biology=7');
-  assert.deepEqual(errors, []);
-  assert.deepEqual(parts, SCIENCE.parts);
-  assert.equal(core.checkParts(parts, 20), null);
-  assert.match(core.checkParts(parts, 25), /add up to 20, but MCB expects 25/);
+test('parts must be two or more, differently named, and add up to the subject maximum', () => {
+  assert.equal(core.checkParts(SCIENCE.parts, 20), null);
+  assert.equal(core.checkParts([], 20), null); // no split
+  assert.match(core.checkParts(SCIENCE.parts, 25), /add up to 20, but MCB expects 25/);
   assert.match(core.checkParts([{ name: 'A', max: 5 }, { name: 'a', max: 5 }], 10), /twice/);
-  assert.equal(core.parseParts('Physics').errors.length, 1);
-  assert.deepEqual(core.parseParts('  ').parts, []);
+  assert.match(core.checkParts([{ name: 'Theory', max: 20 }], 20), /two or more/);
 });
 
 test('a student total is the sum of the parts', () => {

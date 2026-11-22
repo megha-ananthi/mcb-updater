@@ -50,23 +50,7 @@
     return norm(x.text) === norm(y.text);
   }
 
-  // ---------- subject parts ("Physics 7, Chemistry 6, Biology 7") ----------
-
-  /** Reads the parts text box. Returns { parts: [{name, max}], errors: [text] }. Empty text = no parts. */
-  function parseParts(text) {
-    const parts = [];
-    const errors = [];
-    const pieces = String(text || '').split(/[,;\n]+/).map((p) => p.trim()).filter(Boolean);
-    for (const piece of pieces) {
-      const m = piece.match(/^(.*?)[\s(=:-]+(\d+(?:\.\d+)?)\s*\)?$/);
-      if (!m || !m[1].trim()) {
-        errors.push('"' + piece + '" should look like "Physics 7".');
-        continue;
-      }
-      parts.push({ name: m[1].trim(), max: Number(m[2]) });
-    }
-    return { parts, errors };
-  }
+  // ---------- subject parts (Science = Physics 7 + Chemistry 6 + Biology 7) ----------
 
   /** Why these parts cannot be used for this subject, or null when they are fine. */
   function checkParts(parts, subjectMax) {
@@ -627,7 +611,7 @@
   return {
     VERSION, ABSENT_CODES, META_SHEET,
     norm, normCode, parseCell, sameMark, formatMark,
-    parseParts, checkParts, subjectColumns, computeSubject,
+    checkParts, subjectColumns, computeSubject,
     evaluateSection, reconcileSection, summarizeSection, marksFor, diffMarks, verifyMarks,
     mcbDate, parseDashboardIds, parseBranches, parseClasses, parseSections, parseExams, parseSubjectList,
     studentsQuerySubjects, entryClosed, parseSectionInfo, buildMcbCsv, uploadFields, uploadOutcome,

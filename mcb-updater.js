@@ -197,7 +197,12 @@
     select, input[type=text], input[type=url], input[type=number] { display: block; width: 100%; margin-top: 3px; padding: 7px 8px;
       border: 1px solid #b9c3d0; border-radius: 6px; font: inherit; font-weight: 400; color: inherit; background: #fff; }
     .subject { border: 1px solid #dde3ea; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
-    .subject label { font-weight: 600; } .subject input[type=text] { margin-top: 6px; }
+    .subject label { font-weight: 600; } .subject input[type=number] { margin-top: 6px; }
+    .subject label.splitline { display: block; font-weight: 400; font-size: 13px; margin-top: 6px; }
+    .parts { margin-top: 6px; padding: 8px 8px 6px; background: #f3f6fa; border-radius: 6px; }
+    .partrow { display: grid; grid-template-columns: 1fr 84px 58px; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .partrow.head { font-size: 12px; font-weight: 600; color: #5c6b82; margin-bottom: 3px; }
+    .subject .partrow input { margin-top: 0; }
     .hint { font-size: 12px; color: #5c6b82; margin-top: 4px; } .hint.bad { color: #b3261e; } .hint.good { color: #1a7f37; }
     button.go { padding: 9px 14px; border: 0; border-radius: 6px; background: #1565d8; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
     button.go:disabled { background: #9db3d3; cursor: default; }
@@ -266,31 +271,74 @@
       if (!examSel.value) return;
       const found = await api.listSubjects({ branchId: branchSel.value, classId: classSel.value, examId: examSel.value });
       subjects = found.map((s) => {
-        const item = { id: s.id, name: s.name, max: s.max };
+        const item = { id: s.id, name: s.name, max: s.max, rows: [] };
         item.tick = el('input', { type: 'checkbox', onchange: () => checkSubject(item) });
         item.maxBox = s.max == null
           ? el('input', { type: 'number', min: '1', step: 'any', placeholder: 'Maximum marks', oninput: () => checkSubject(item) })
           : null;
-        item.partsBox = el('input', { type: 'text', placeholder: 'Parts (optional), e.g. Physics 7, Chemistry 6, Biology 7', oninput: () => checkSubject(item) });
+        item.split = el('input', { type: 'checkbox', onchange: () => {
+          if (item.split.checked) {
+            item.tick.checked = true;
+            while (item.rows.length < 3) addPartRow(item);
+          }
+          item.partsWrap.hidden = !item.split.checked;
+          checkSubject(item);
+        } });
+        item.rowsBox = el('div');
+        item.partsWrap = el('div', { class: 'parts', hidden: true },
+          el('div', { class: 'partrow head' }, el('span', {}, 'Part'), el('span', {}, 'Maximum'), el('span', {})),
+          item.rowsBox,
+          el('button', { class: 'plain', onclick: () => { addPartRow(item); checkSubject(item); } }, '+ Add a part'));
         item.hint = el('div', { class: 'hint' });
         subjectBox.append(el('div', { class: 'subject' },
           el('label', {}, item.tick, ' ', s.name, s.max == null ? '' : ' (max ' + s.max + ')'),
-          item.maxBox, item.partsBox, item.hint));
+          item.maxBox,
+          el('label', { class: 'splitline' }, item.split, ' Split into parts, for example Physics, Chemistry, Biology'),
+          item.partsWrap, item.hint));
         return item;
       });
       if (!subjects.length) say(tStatus, 'MCB lists no subjects for this examination.', 'bad');
     }
 
+    /** One part of a subject: a name box, a maximum box, and a way to take it out again. */
+    function addPartRow(item) {
+      const row = {
+        name: el('input', { type: 'text', placeholder: 'Part name', oninput: () => checkSubject(item) }),
+        max: el('input', { type: 'number', min: '0', step: 'any', placeholder: 'Max', oninput: () => checkSubject(item) }),
+      };
+      row.node = el('div', { class: 'partrow' }, row.name, row.max,
+        el('button', { class: 'plain', title: 'Remove this part', onclick: () => {
+          item.rows.splice(item.rows.indexOf(row), 1);
+          row.node.remove();
+          checkSubject(item);
+        } }, 'Remove'));
+      item.rows.push(row);
+      item.rowsBox.append(row.node);
+    }
+
     /** The subject as it goes into the template, or the reason it cannot. */
     function checkSubject(item) {
-      const { parts, errors } = core.parseParts(item.partsBox.value);
+      const parts = [];
+      let rowProblem = null;
+      if (item.split.checked) {
+        for (const row of item.rows) {
+          const name = row.name.value.trim();
+          const max = row.max.value.trim();
+          if (!name && !max) continue; // a row left empty is not a part
+          if (!name) rowProblem = rowProblem || 'Give a name to the part with maximum ' + max + '.';
+          else if (!(Number(max) > 0)) rowProblem = rowProblem || 'Give ' + name + ' a maximum above 0.';
+          else parts.push({ name, max: Number(max) });
+        }
+        if (!rowProblem && !parts.length) rowProblem = 'Fill in the parts, or untick "Split into parts".';
+      }
       let max = item.max;
       if (max == null && item.maxBox.value) max = Number(item.maxBox.value);
-      if (max == null && parts.length) max = parts.reduce((sum, p) => sum + p.max * 100, 0) / 100;
-      const problem = errors[0] || core.checkParts(parts, max) || (max > 0 ? null : 'Give the maximum marks.');
+      if (max == null && parts.length) max = parts.reduce((sum, p) => sum + Math.round(p.max * 100), 0) / 100;
+      const problem = rowProblem || core.checkParts(parts, max) || (max > 0 ? null : 'Give the maximum marks.');
       item.hint.className = 'hint ' + (problem ? 'bad' : 'good');
       item.hint.textContent = problem || (parts.length
-        ? 'Columns: ' + parts.map((p) => p.name + ' (' + p.max + ')').join(', ') + ', and a total out of ' + max + '.'
+        ? 'Adds up to ' + max + ' of ' + max + '. The sheet gets a column for ' + parts.map((p) => p.name + ' (' + p.max + ')').join(', ') +
+          ', and a TOTAL column that adds them up. Only the total goes to MCB.'
         : 'One column, marks out of ' + max + '.');
       return { problem, subject: { id: item.id, name: item.name, max, parts } };
     }
