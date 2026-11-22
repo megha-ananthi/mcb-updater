@@ -192,7 +192,6 @@
       border-bottom: 3px solid transparent; }
     nav button.on { background: #fff; color: #12233f; font-weight: 600; border-bottom-color: #1565d8; }
     main { flex: 1; overflow: auto; padding: 14px; }
-    .note { background: #fff6dd; border: 1px solid #ecd28a; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px; }
     label.field { display: block; margin-bottom: 10px; font-weight: 600; font-size: 12px; color: #45536a; }
     select, input[type=text], input[type=url], input[type=number] { display: block; width: 100%; margin-top: 3px; padding: 7px 8px;
       border: 1px solid #b9c3d0; border-radius: 6px; font: inherit; font-weight: 400; color: inherit; background: #fff; }

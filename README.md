@@ -4,8 +4,7 @@ A teacher fills the marks for a whole class in one sheet (one tab per section), 
 MyClassBoard (MCB) section by section. A subject can be split into parts, for example Science as Physics 7 +
 Chemistry 6 + Biology 7. MCB only gets the total.
 
-**Status: wired to MCB's real requests and checked against a capture of them. Not yet run against the live
-MCB**, so the first real upload should be one section only (see [Not checked yet](#not-checked-yet)).
+**Status: in use on the live MCB.** Making the template and uploading the marks both work there.
 
 ## How it works
 
@@ -14,8 +13,9 @@ this site into the MCB page, where it runs with her own session. No password is 
 sheet to MCB and nowhere else. A normal website cannot do this: the browser does not let another site use her
 MCB login.
 
-1. **Make template.** Pick branch, class, examination and subject(s); optionally tick "Split into parts" and give each part a name and a maximum. The
-   panel reads every section's student list from MCB and downloads one `.xlsx`: a tab per section with
+1. **Make template.** Pick branch, class, examination and subject(s); optionally tick "Split into parts" and
+   give each part a name and a maximum. The panel reads every section's student list from MCB and downloads one
+   `.xlsx`: a tab per section with
    `S.No | Enrollment code | Name | <parts> | TOTAL`, and a hidden `_meta` tab that records which exam the file
    is for.
 2. **Fill.** In Google Sheets or Excel. Absent = `A`, `AB`, `L` or `AM`. A blank part counts as 0. A fully blank
@@ -84,18 +84,13 @@ MCB refuses a line with an empty mark, so students without a mark are left out o
 
 Examinations that take grades instead of marks use other MCB requests and are refused by the panel.
 
-## Not checked yet
+## How an upload is checked
 
-Everything above was checked against a capture of MCB's requests and against MCB's page script, not against the
-live site. The capture holds one upload, of an empty file, which MCB refused. So these are still assumptions,
-and the read-back after each upload is what catches them:
+The panel does not take MCB's "uploaded" answer on trust. After each section's file is sent, it asks MCB for
+that section again and compares every mark with the sheet. If MCB did not save a mark, or kept an older value,
+the panel names the student and stops there, so the sections after it are not sent.
 
-- A successful upload answers with a non-zero `dt4` (this is how MCB's own page decides).
-- MCB takes decimal marks such as `14.5` and the absent codes in an uploaded file.
-- An upload replaces a mark that is already saved. MCB's page uses a different request to edit a saved mark, so
-  it may keep the old one. The preview lists these as "replace a mark in MCB".
-- Saved marks come back in `ds4` the way MCB's page script reads them.
-- The template opened in Google Sheets and downloaded again as `.xlsx` keeps its cell validation, locked
-  columns and hidden `_meta` tab (only the ExcelJS round trip is tested).
+Before uploading, the preview lists every mark that would replace one already saved in MCB.
 
-For the first real run, use "Tick only the first section", then look at that section in MCB.
+"Tick only the first section" uploads one section on its own, which is a quick way to look at the result in MCB
+before sending a whole class.
